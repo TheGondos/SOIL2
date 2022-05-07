@@ -525,6 +525,7 @@ STBIDEF int   stbi_zlib_decode_noheader_buffer(char *obuffer, int olen, const ch
 #include <stdio.h>
 #endif
 
+#define STBI_ASSERT(x)
 #ifndef STBI_ASSERT
 #include <assert.h>
 #define STBI_ASSERT(x) assert(x)
@@ -5018,7 +5019,9 @@ typedef struct
 static void *stbi__bmp_parse_header(stbi__context *s, stbi__bmp_data *info)
 {
    int hsz;
-   if (stbi__get8(s) != 'B' || stbi__get8(s) != 'M') return stbi__errpuc("not BMP", "Corrupt BMP");
+   if (stbi__get8(s) != 'B' || stbi__get8(s) != 'M') {
+      return stbi__errpuc("not BMP", "Corrupt BMP");
+   }
    stbi__get32le(s); // discard filesize
    stbi__get16le(s); // discard reserved
    stbi__get16le(s); // discard reserved
@@ -5026,7 +5029,9 @@ static void *stbi__bmp_parse_header(stbi__context *s, stbi__bmp_data *info)
    info->hsz = hsz = stbi__get32le(s);
    info->mr = info->mg = info->mb = info->ma = 0;
 
-   if (hsz != 12 && hsz != 40 && hsz != 56 && hsz != 108 && hsz != 124) return stbi__errpuc("unknown BMP", "BMP type not supported: unknown");
+   if (hsz != 12 && hsz != 40 && hsz != 56 && hsz != 108 && hsz != 124) {
+      return stbi__errpuc("unknown BMP", "BMP type not supported: unknown");
+   }
    if (hsz == 12) {
       s->img_x = stbi__get16le(s);
       s->img_y = stbi__get16le(s);
@@ -5034,12 +5039,18 @@ static void *stbi__bmp_parse_header(stbi__context *s, stbi__bmp_data *info)
       s->img_x = stbi__get32le(s);
       s->img_y = stbi__get32le(s);
    }
-   if (stbi__get16le(s) != 1) return stbi__errpuc("bad BMP", "bad BMP");
+   if (stbi__get16le(s) != 1) {
+      return stbi__errpuc("bad BMP", "bad BMP");
+   }
    info->bpp = stbi__get16le(s);
-   if (info->bpp == 1) return stbi__errpuc("monochrome", "BMP type not supported: 1-bit");
+   if (info->bpp == 1) {
+      return stbi__errpuc("monochrome", "BMP type not supported: 1-bit");
+   }
    if (hsz != 12) {
       int compress = stbi__get32le(s);
-      if (compress == 1 || compress == 2) return stbi__errpuc("BMP RLE", "BMP type not supported: RLE");
+      if (compress == 1 || compress == 2) {
+         return stbi__errpuc("BMP RLE", "BMP type not supported: RLE");
+      }
       stbi__get32le(s); // discard sizeof
       stbi__get32le(s); // discard hres
       stbi__get32le(s); // discard vres
@@ -5074,13 +5085,15 @@ static void *stbi__bmp_parse_header(stbi__context *s, stbi__bmp_data *info)
                   // ?!?!?
                   return stbi__errpuc("bad BMP", "bad BMP");
                }
-            } else
+            } else {
                return stbi__errpuc("bad BMP", "bad BMP");
+            }
          }
       } else {
          int i;
-         if (hsz != 108 && hsz != 124)
+         if (hsz != 108 && hsz != 124) {
             return stbi__errpuc("bad BMP", "bad BMP");
+         }
          info->mr = stbi__get32le(s);
          info->mg = stbi__get32le(s);
          info->mb = stbi__get32le(s);
@@ -5111,8 +5124,9 @@ static void *stbi__bmp_load(stbi__context *s, int *x, int *y, int *comp, int req
    STBI_NOTUSED(ri);
 
    info.all_a = 255;
-   if (stbi__bmp_parse_header(s, &info) == NULL)
+   if (stbi__bmp_parse_header(s, &info) == NULL) {
       return NULL; // error code already set
+   }
 
    flip_vertically = ((int) s->img_y) > 0;
    s->img_y = abs((int) s->img_y);

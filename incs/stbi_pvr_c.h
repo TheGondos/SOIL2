@@ -1,4 +1,5 @@
 #include "pvr_helper.h"
+#define assert(x)
 
 static int stbi__pvr_test(stbi__context *s)
 {

@@ -16,8 +16,9 @@
 	* everybody at gamedev.net
 */
 
-#define SOIL_CHECK_FOR_GL_ERRORS 0
-
+#define SOIL_CHECK_FOR_GL_ERRORS 1
+//#include "../../glad.h"
+//#include <GLFW/glfw3.h>
 #if defined( __APPLE_CC__ ) || defined ( __APPLE__ )
 	#include <TargetConditionals.h>
 
@@ -420,12 +421,14 @@ unsigned int
 	{
 		channels = force_channels;
 	}
+
 	if( NULL == img )
 	{
 		/*	image loading failed	*/
 		result_string_pointer = stbi_failure_reason();
 		return 0;
 	}
+
 	/*	OK, make it a texture!	*/
 	tex_id = SOIL_internal_create_OGL_texture(
 			img, &width, &height, channels,
@@ -500,7 +503,7 @@ unsigned int
 	SOIL_load_OGL_texture_from_memory
 	(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t *buffer_length,
 		int force_channels,
 		unsigned int reuse_texture_ID,
 		unsigned int flags
@@ -530,7 +533,7 @@ unsigned int
 	if( flags & SOIL_FLAG_PVR_LOAD_DIRECT )
 	{
 		tex_id = SOIL_direct_load_PVR_from_memory(
-				buffer, buffer_length,
+				buffer, *buffer_length,
 				reuse_texture_ID, flags, 0 );
 		if( tex_id )
 		{
@@ -542,7 +545,7 @@ unsigned int
 	if( flags & SOIL_FLAG_ETC1_LOAD_DIRECT )
 	{
 		tex_id = SOIL_direct_load_ETC1_from_memory(
-				buffer, buffer_length,
+				buffer, *buffer_length,
 				reuse_texture_ID, flags );
 		if( tex_id )
 		{
@@ -553,7 +556,7 @@ unsigned int
 
 	/*	try to load the image	*/
 	img = SOIL_load_image_from_memory(
-					buffer, buffer_length,
+					buffer, *buffer_length,
 					&width, &height, &channels,
 					force_channels );
 	/*	channels holds the original number of channels, which may have been forced	*/
@@ -1072,7 +1075,7 @@ unsigned int
 	SOIL_load_OGL_single_cubemap_from_memory
 	(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t buffer_length,
 		const char face_order[6],
 		int force_channels,
 		unsigned int reuse_texture_ID,
@@ -1097,7 +1100,7 @@ unsigned int
 			DDS file, no MIPmaps will be generated, the image will
 			not be flipped, etc.	*/
 		tex_id = SOIL_direct_load_DDS_from_memory(
-				buffer, buffer_length,
+				buffer, &buffer_length,
 				reuse_texture_ID, flags, 1 );
 		if( tex_id )
 		{
@@ -1981,7 +1984,7 @@ const char*
 
 unsigned int SOIL_direct_load_DDS_from_memory(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t *buffer_length,
 		unsigned int reuse_texture_ID,
 		int flags,
 		int loading_as_cubemap )
@@ -2008,7 +2011,7 @@ unsigned int SOIL_direct_load_DDS_from_memory(
 		result_string_pointer = "NULL buffer";
 		return 0;
 	}
-	if( buffer_length < sizeof( DDS_header ) )
+	if( *buffer_length < sizeof( DDS_header ) )
 	{
 		/*	we can't do it!	*/
 		result_string_pointer = "DDS file was too small to contain the DDS header";
@@ -2158,13 +2161,17 @@ unsigned int SOIL_direct_load_DDS_from_memory(
 	if( tex_ID == 0 )
 	{
 		glGenTextures( 1, &tex_ID );
+		if( tex_ID == 0 ) {
+			printf("glGenTextures failed\n");
+			exit(-1);
+		}
 	}
 	/*  bind an OpenGL texture ID	*/
 	glBindTexture( opengl_texture_type, tex_ID );
 	/*	do this for each face of the cubemap!	*/
 	for( cf_target = ogl_target_start; cf_target <= ogl_target_end; ++cf_target )
 	{
-		if( buffer_index + DDS_full_size <= (unsigned int)buffer_length )
+		if( buffer_index + DDS_full_size <= (unsigned int)*buffer_length )
 		{
 			unsigned int byte_offset = DDS_main_size;
 			memcpy( (void*)DDS_data, (const void*)(&buffer[buffer_index]), DDS_full_size );
@@ -2234,6 +2241,9 @@ unsigned int SOIL_direct_load_DDS_from_memory(
 			result_string_pointer = "DDS file was too small for expected image data";
 		}
 	}/* end reading each face */
+
+	*buffer_length = buffer_index;
+
 	SOIL_free_image_data( DDS_data );
 	if( tex_ID )
 	{
@@ -2312,10 +2322,71 @@ unsigned int SOIL_direct_load_DDS(
 	}
 	/*	now try to do the loading	*/
 	tex_ID = SOIL_direct_load_DDS_from_memory(
-		(const unsigned char *const)buffer, (int)buffer_length,
+		(const unsigned char *const)buffer, &buffer_length,
 		reuse_texture_ID, flags, loading_as_cubemap );
 	SOIL_free_image_data( buffer );
 	return tex_ID;
+}
+
+
+unsigned int SOIL_direct_load_DDS_blob(
+		const char *filename,
+		int *texture_ID,
+		int nTex,
+		int flags)
+{
+	FILE *f;
+	unsigned char *buffer;
+	size_t buffer_length, bytes_read;
+	/*	error checks	*/
+	if( NULL == filename )
+	{
+		result_string_pointer = "NULL filename";
+		return 0;
+	}
+	f = fopen( filename, "rb" );
+	if( NULL == f )
+	{
+		/*	the file doesn't seem to exist (or be open-able)	*/
+		result_string_pointer = "Can not find DDS file";
+		return 0;
+	}
+	fseek( f, 0, SEEK_END );
+	buffer_length = ftell( f );
+	fseek( f, 0, SEEK_SET );
+	buffer = (unsigned char *) malloc( buffer_length );
+	if( NULL == buffer )
+	{
+		result_string_pointer = "malloc failed";
+		fclose( f );
+		return 0;
+	}
+	bytes_read = fread( (void*)buffer, 1, buffer_length, f );
+	fclose( f );
+	if( bytes_read < buffer_length )
+	{
+		/*	huh?	*/
+		buffer_length = bytes_read;
+	}
+	/*	now try to do the loading	*/
+	
+	int i;
+	char *tmp = buffer;
+	for(i = 0; i< nTex; i++) {
+		size_t len = buffer_length;
+		texture_ID[i] = SOIL_direct_load_DDS_from_memory(
+			(const unsigned char *const)tmp, &len,
+			0, flags, 0 );
+
+		buffer_length -= len;
+		tmp += len;
+
+		if(buffer_length == 0)
+			break;
+	}
+
+	free( buffer );
+	return i;
 }
 
 unsigned int SOIL_direct_load_PVR_from_memory(

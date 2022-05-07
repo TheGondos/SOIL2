@@ -371,10 +371,12 @@ static void * stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int re
 	s->img_x = header.dwWidth;
 	s->img_y = header.dwHeight;
 	s->img_n = 4;
+
 	is_compressed = (header.sPixelFormat.dwFlags & DDPF_FOURCC) / DDPF_FOURCC;
 	has_alpha = (header.sPixelFormat.dwFlags & DDPF_ALPHAPIXELS) / DDPF_ALPHAPIXELS;
 	has_mipmap = (header.sCaps.dwCaps1 & DDSCAPS_MIPMAP) && (header.dwMipMapCount > 1);
 	cubemap_faces = (header.sCaps.dwCaps2 & DDSCAPS2_CUBEMAP) / DDSCAPS2_CUBEMAP;
+
 	/*	I need cubemaps to have square faces	*/
 	cubemap_faces &= (s->img_x == s->img_y);
 	cubemap_faces *= 5;
@@ -483,6 +485,7 @@ static void * stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int re
 		{
 			s->img_n = 4;
 		}
+		
 		*comp = s->img_n;
 		sz = s->img_x*s->img_y*s->img_n*cubemap_faces;
 		dds_data = (unsigned char*)malloc( sz );
@@ -490,7 +493,7 @@ static void * stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int re
 		for( cf = 0; cf < cubemap_faces; ++ cf )
 		{
 			/*	read the main image for this face	*/
-			stbi__getn( s, &dds_data[cf*s->img_x*s->img_y*s->img_n], s->img_x*s->img_y*s->img_n );
+			stbi__getn( s, &dds_data[cf*s->img_x*s->img_y*s->img_n], header.sPixelFormat.dwRGBBitCount == 32 ? s->img_x*s->img_y*s->img_n : s->img_x*s->img_y*s->img_n / 2 );
 			/*	done reading and decoding the main image...
 				stbi__skip MIPmaps if present	*/
 			if( has_mipmap )
@@ -511,13 +514,32 @@ static void * stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int re
 				}
 			}
 		}
-		/*	data was BGR, I need it RGB	*/
-		for( i = 0; i < sz; i += s->img_n )
-		{
-			unsigned char temp = dds_data[i];
-			dds_data[i] = dds_data[i+2];
-			dds_data[i+2] = temp;
+		if(header.sPixelFormat.dwRGBBitCount == 32) {
+			/*	data was BGR, I need it RGB	*/
+			for( i = 0; i < sz; i += s->img_n )
+			{
+				unsigned char temp = dds_data[i];
+				dds_data[i] = dds_data[i+2];
+				dds_data[i+2] = temp;
+			}
+		} else {
+			//RGBA4444 -> RGBA8888
+			for( i = sz - 4 ; i>=0 ; i-=4) {
+				char *dst = &dds_data[i];
+				char *src = &dds_data[i/2];
+
+				int b = (*src & 0xf)<<4;
+				int g = (*src & 0xf0)<<0;
+				int r = (*(src+1) & 0xf)<<4;
+				int a = (*(src+1) & 0xf0)<<0;
+
+				dst[0] = r;
+				dst[1] = g;
+				dst[2] = b;
+				dst[3] = a;
+			}
 		}
+
 	}
 	/*	finished decompressing into RGBA,
 		adjust the y size if we have a cubemap

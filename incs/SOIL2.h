@@ -249,7 +249,7 @@ unsigned int
 	SOIL_load_OGL_texture_from_memory
 	(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t *buffer_length,
 		int force_channels,
 		unsigned int reuse_texture_ID,
 		unsigned int flags
@@ -308,7 +308,7 @@ unsigned int
 	SOIL_load_OGL_single_cubemap_from_memory
 	(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t buffer_length,
 		const char face_order[6],
 		int force_channels,
 		unsigned int reuse_texture_ID,
@@ -471,10 +471,16 @@ unsigned int SOIL_direct_load_DDS(
 		int flags,
 		int loading_as_cubemap );
 
+unsigned int SOIL_direct_load_DDS_blob(
+		const char *filename,
+		int *texture_ID,
+		int nTex,
+		int flags);
+
 /** Loads the DDS texture directly to the GPU memory ( if supported ) */
 unsigned int SOIL_direct_load_DDS_from_memory(
 		const unsigned char *const buffer,
-		int buffer_length,
+		size_t *buffer_length,
 		unsigned int reuse_texture_ID,
 		int flags,
 		int loading_as_cubemap );

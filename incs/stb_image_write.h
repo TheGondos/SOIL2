@@ -189,7 +189,7 @@ STBIWDEF int stbi_write_hdr_to_func(stbi_write_func *func, void *context, int w,
 #define STBIW_MEMMOVE(a,b,sz) memmove(a,b,sz)
 #endif
 
-
+#define STBIW_ASSERT(x)
 #ifndef STBIW_ASSERT
 #include <assert.h>
 #define STBIW_ASSERT(x) assert(x)
