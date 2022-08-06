@@ -169,7 +169,8 @@ unsigned int
 		const char *filename,
 		int force_channels,
 		unsigned int reuse_texture_ID,
-		unsigned int flags
+		unsigned int flags,
+		uint64_t offset
 	);
 
 /**
@@ -469,7 +470,8 @@ unsigned int SOIL_direct_load_DDS(
 		const char *filename,
 		unsigned int reuse_texture_ID,
 		int flags,
-		int loading_as_cubemap );
+		int loading_as_cubemap,
+		uint64_t offset );
 
 unsigned int SOIL_direct_load_DDS_blob(
 		const char *filename,

@@ -372,7 +372,8 @@ unsigned int
 		const char *filename,
 		int force_channels,
 		unsigned int reuse_texture_ID,
-		unsigned int flags
+		unsigned int flags,
+		uint64_t offset
 	)
 {
 	/*	variables	*/
@@ -386,7 +387,7 @@ unsigned int
 			note: direct uploading will only load what is in the
 			DDS file, no MIPmaps will be generated, the image will
 			not be flipped, etc.	*/
-		tex_id = SOIL_direct_load_DDS( filename, reuse_texture_ID, flags, 0 );
+		tex_id = SOIL_direct_load_DDS( filename, reuse_texture_ID, flags, 0, offset );
 		if( tex_id )
 		{
 			/*	hey, it worked!!	*/
@@ -997,7 +998,7 @@ unsigned int
 			note: direct uploading will only load what is in the
 			DDS file, no MIPmaps will be generated, the image will
 			not be flipped, etc.	*/
-		tex_id = SOIL_direct_load_DDS( filename, reuse_texture_ID, flags, 1 );
+		tex_id = SOIL_direct_load_DDS( filename, reuse_texture_ID, flags, 1, 0 );
 		if( tex_id )
 		{
 			/*	hey, it worked!!	*/
@@ -2284,7 +2285,8 @@ unsigned int SOIL_direct_load_DDS(
 		const char *filename,
 		unsigned int reuse_texture_ID,
 		int flags,
-		int loading_as_cubemap )
+		int loading_as_cubemap,
+		uint64_t offset )
 {
 	FILE *f;
 	unsigned char *buffer;
@@ -2304,8 +2306,8 @@ unsigned int SOIL_direct_load_DDS(
 		return 0;
 	}
 	fseek( f, 0, SEEK_END );
-	buffer_length = ftell( f );
-	fseek( f, 0, SEEK_SET );
+	buffer_length = ftell( f ) - offset;
+	fseek( f, offset, SEEK_SET );
 	buffer = (unsigned char *) malloc( buffer_length );
 	if( NULL == buffer )
 	{
@@ -2381,8 +2383,10 @@ unsigned int SOIL_direct_load_DDS_blob(
 		buffer_length -= len;
 		tmp += len;
 
-		if(buffer_length == 0)
+		if(buffer_length == 0) {
+			i++;
 			break;
+		}
 	}
 
 	free( buffer );
